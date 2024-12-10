@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Home</title>
+</head>
+<body>
+    <h1>Admin Home</h1>
+    <h3>Users: </h3>
+    <ul>
+    {% for user in user_data %}
+        <li>{{ user }}</li>
+    {% endfor %}
+    </ul>
+    <h3>Subscriptions</h3>
+    <ul>
+    {% for subscription in sub_data %}
+        <li>{{ subscription }}</li>
+    {% endfor %}
+    </ul>
+    <a href="{{ url_for('createSubscription') }}">Create Subscription</a>
+    <h3>Permissions</h3>
+    <ul>
+    {% for permission in perm_data %}
+        <li>{{ permission }}</li>
+    {% endfor %}
+    </ul>
+    <a href="{{ url_for('createPermission') }}">Create Permission</a>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Subscription</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Create Subscription</h1>
+    <form action="/create_subscription" method="post">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" required><br><br>
+        <label for="plan">Subscription Plan:</label>
+        <select id="plan" name="plan" required>
+            <option value="basic">Basic</option>
+            <option value="standard">Standard</option>
+            <option value="premium">Premium</option>
+        </select><br><br>
+
+        <input type="submit" value="Create Subscription">
+    </form>
+</body>
+</html>
