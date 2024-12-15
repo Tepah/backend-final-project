@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Subscription</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Edit Subscription</h1>
+        <form action="/edit_subscription/{{ subscription['_id'] }}" method="post">
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" value="{{ subscription['name']}}" required><br>
+            <label for="description">Description:</label>
+            <textarea id="description" name="description">{{ subscription['desc']}}</textarea><br><br>
+            <label for="plan">Subscription Plan:</label>
+            {%for permission in subscription['permissions']%}
+                <p>{{permission}}</p> <a href="{{'/delete_permission/' + permission}}">Delete</a><br>
+            {%endfor%}
+            <form>
+                <input type="text" name="permission_name">
+                <input type="submit" value="Add Permission">
+            </form>
+            
+            <label for="requests">Requests:</label>
+            <input type="number" id="requests" name="requests" value="{{ subscription['requests'] }}" required><br><br>
+
+            <label for="limit">Access Limit:</label>
+            <input type="number" id="limit" name="limit" value="{{ subscription['access_limit'] }}" required><br><br>
+            
+            <label for="auto">Auto-Renew:</label>
+            <input type="checkbox" id="auto" name="auto" {% if subscription['auto'] %}checked{% endif %}><br><br>
+            
+            <input type="submit" value="Create Subscription">
+        </form>
+    </div>
+</body>
+</html>

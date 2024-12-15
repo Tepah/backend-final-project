@@ -10,14 +10,21 @@
     <h1>Create Subscription</h1>
     <form action="/create_subscription" method="post">
         <label for="name">Name:</label>
-        <input type="text" id="name" name="name" required><br><br>
+        <input type="text" id="name" name="name" required><br>
+        <label for="description">Description:</label>
+        <textarea id="description" name="description" required></textarea><br><br>
         <label for="plan">Subscription Plan:</label>
         <select id="plan" name="plan" required>
-            <option value="basic">Basic</option>
-            <option value="standard">Standard</option>
-            <option value="premium">Premium</option>
+            <option value="tier1">Tier 1</option>
+            <option value="tier2">Tier 2</option>
+            <option value="tier3">Tier 3</option>
         </select><br><br>
-
+        <label for="limit">Access Limit:</label>
+        <input type="number" id="limit" name="limit" required><br><br>
+        <label for="auto">Auto-Renew:</label>
+        <input type="checkbox" id="auto" name="auto"><br><br>
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required><br><br>
         <input type="submit" value="Create Subscription">
     </form>
 </body>

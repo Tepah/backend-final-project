@@ -27,16 +27,29 @@ async def test_connection():
     except Exception as e:
         print(f"Error: {e}")
         return {"Error": str(e)}
+    
 
 # Subscription Based calls
 @app.post("/subscriptions")
 async def createSub(data: dict):
     try:
+        data["start_date"] = datetime.now()
         subscription = Subscription(**data)
-        subscription["start_date"] = datetime.now()
         encoded_sub = jsonable_encoder(subscription)
-        result = sub_col.insert_one(encoded_sub)
-        return {"message": "Data has been inserted"}
+        result = await sub_col.insert_one(encoded_sub)
+        return {"message": "Data has been inserted", "data": str(result.inserted_id)}
+    except Exception as e:
+        return {"Error" : str(e)}
+
+
+@app.get("/subscriptions/{id}")
+async def getSub(id: str):
+    try:
+        subscription = await sub_col.find_one({"_id": ObjectId(id)})
+        if not subscription:
+            raise HTTPException(status_code=404, detail="Subscription not found")
+        subscription = objToStr(subscription)
+        return {"message": "Subscription found", "data": subscription}
     except Exception as e:
         return {"Error" : str(e)}
 
@@ -44,15 +57,17 @@ async def createSub(data: dict):
 @app.put("/subscriptions/{id}")
 async def modifySub(id: str, data: dict):
     try:
+        print(id)
         subscription = await sub_col.find_one({"_id": ObjectId(id)})
         if not subscription:
             raise HTTPException(status_code=404, detail="Subscription not found.")
-        new_subscription = Subscription(**subscription)
-        for key in new_subscription.keys():
-            new_subscription[key] = data.get(key, new_subscription[key])
+        
+        updated_data = {**subscription, **data}
+        print(updated_data)
+        new_subscription = Subscription(**updated_data)
         encoded_sub = jsonable_encoder(new_subscription)
-        result = sub_col.update_one({"_id": id}, encoded_sub)
-        return {"message": "Subscription was updated"}
+        result = await sub_col.update_one({"_id": ObjectId(id)}, {"$set":encoded_sub})
+        return {"message": "Subscription was updated", "data": str(id)}
     except Exception as e:
         return {"Error" : str(e)}
 
@@ -67,6 +82,17 @@ async def deleteSub(id: str):
 
 
 # Permission Based calls
+@app.get("/permissions/{id}")
+async def getPermission(id: str):
+    try:
+        permission = await perm_col.find_one({"_id": ObjectId(id)})
+        if not permission:
+            raise HTTPException(status_code=404, detail="Permission not found")
+        permission = objToStr(permission)
+        return {"message": "Permission found", "data": permission}
+    except Exception as e:
+        return {"Error" : str(e)}
+
 @app.post("/permissions")
 async def createPermission(data: dict):
     try:
@@ -76,7 +102,7 @@ async def createPermission(data: dict):
         permission = Permission(**data)
         encoded_perm = jsonable_encoder(permission)
         res = await perm_col.insert_one(encoded_perm)
-        return {"Message": "Permission Created", "Permission ID" : res.inserted_id}
+        return {"Message": "Permission Created", "Permission ID" : str(res.inserted_id)}
     except Exception as e:
         return {"Error" : str(e)}
 
@@ -86,7 +112,7 @@ async def modifyPermission(id: str, data: dict):
     try:
         permission = Permission(**data)
         encoded_perm = jsonable_encoder(permission)
-        res = perm_col.update_one({"_id": id}, encoded_perm)
+        res = perm_col.update_one({"_id": ObjectId(id)}, {"$set": encoded_perm})
         return {"message": "Permisssion was changed"}
     except Exception as e:
         return {"Error" : str(e)}
@@ -117,8 +143,32 @@ async def changeUserSubscription(userID: str, subID: str):
         
         customer["subscription"] = str(subscription["_id"])
 
-        res = await user_col.update_one({"_id": ObjectId(subID)}, customer)
+        res = await user_col.update_one({"_id": ObjectId(subID)}, {"$set": customer})
         return {"message": "Subscription has been updated for user: " + userID + "to Subscription ID: " + subID}
+    except Exception as e:
+        return {"Error": str(e)}
+    
+
+@app.get("/user/subscription/{id}")
+async def findUserWithSub(id):
+    try:
+        user = await user_col.find_one({"subscription": id})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        user = objToStr(user)
+        return {"message": "User found", "data": user}
+    except Exception as e:
+        return {"Error": str(e)}
+
+@app.put("/user/subscription/{id}")
+async def changeSubForUser(id: str, data: dict):
+    try:
+        user = await user_col.find_one({"subscription": id})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        user["subscription"] = data["subscription"]
+        result = user_col.update_one({"_id": ObjectId(user["_id"])}, {"$set": user})
+        return {"message": "Subscription has been removed from user"}
     except Exception as e:
         return {"Error": str(e)}
 
@@ -166,16 +216,16 @@ async def adminAssignUserSub(userID: str, data: dict):
         user = Customer(**user)
         user["subscription"] = create_call.get("data")
         encoded_user = jsonable_encoder(user)
-        result = await user_col.update_one({"_id": ObjectId(userID)}, encoded_user)
+        result = await user_col.update_one({"_id": ObjectId(userID)}, {"$set": encoded_user })
         return {"message": "Subscription for User" + {user["_id"]} + "has changed"}
     except Exception as e:
         return {"Error": str(e)}
     
 
-@app.put("/admin/user/{userID}/subscription/{}")
+@app.put("/admin/user/{userID}/subscription/{subID}")
 async def adminChangeUserSub(userID: str, subID: str, data: dict):
     try:
-        user_data = await user_col.find_one({"_id": data.get("user_id", "")})
+        user_data = await user_col.find_one({"_id": ObjectId(data.get("user_id", ""))})
         if not user_data or not user_data["admin"]:
             raise HTTPException(status_code=403, detail="Admin priviledges are required")
         user_data = await user_col.find_one({"_id": ObjectId(userID)})
@@ -185,11 +235,11 @@ async def adminChangeUserSub(userID: str, subID: str, data: dict):
         
         if not sub_id:
             raise HTTPException(status_code=404, detail="Subscription not found")
-        
-        user = Customer(**user)
-        user["subscription"] = sub_id["data"]
+        print(sub_id)
+        user_data["subscription"] = sub_id["data"]
+        user = Customer(**user_data)
         encoded_user = jsonable_encoder(user)
-        result = user_col.update_one({"_id": ObjectId(userID)}, encoded_user)
+        result = user_col.update_one({"_id": ObjectId(userID)}, {"$set": encoded_user})
         return {"message": "Changed subscription for user"}
     except Exception as e:
         return {"Error": str(e)}
@@ -248,7 +298,7 @@ async def increaseUserCurrentRequests(userID: str):
         if not sub_data:
             raise HTTPException(status_code=404, detail="Subscription was not found")
         sub_data["requests"] += 1
-        result = sub_col.update_one({"_id": ObjectId(sub_data["_id"])}, sub_data)
+        result = sub_col.update_one({"_id": ObjectId(sub_data["_id"])}, {"$set":sub_data})
         return {"message": "Request count increased for user"}
     except Exception as e:
         return {"error": str(e)}
@@ -296,9 +346,11 @@ async def loginUser(data: dict):
     try:
         user_data = await user_col.find_one({"username": data.get("username", ""),
                                        "password": data.get("password", "")})
-        print(user_data)
+        
         if user_data:
-            return {"message": "User has logged in.", "data": str(user_data["_id"])}
+            user_data = objToStr(user_data)
+            user_data.pop("password")
+            return {"message": "User has logged in.", "data": user_data}
         else:
             raise HTTPException(status_code=404, detail="User not found")
     except Exception as e:
@@ -315,6 +367,7 @@ async def createUser(data: dict):
             raise HTTPException(status_code=400, detail="Requires username and password")
         data["subscription"] = ""
         user = Customer(**data)
+        print(user)
         encoded_user = jsonable_encoder(user)
         result = user_col.insert_one(encoded_user)
         return {"message": "Created a new user"}
@@ -348,12 +401,13 @@ async def createAdmin(data: dict):
         return {"error": str(e)}
 
     
-@app.put("/subscription/{subID}/permission/{permID}")
+@app.put("/subscriptions/{subID}/permission/{permID}")
 async def addSubscriptionPermission(subID: str, permID: str):
     try: 
         sub_data = await sub_col.find_one({"_id": ObjectId(subID)})
         sub_data["permissions"].append(permID)
-        result = sub_col.update_one({"_id": ObjectId(subID)}, sub_data)
+        result = sub_col.update_one({"_id": ObjectId(subID)}, {"$set":sub_data})
+        print("Successful update of permissions to sub")
         return {"message": "Added Permission to sub_data", "data": subID}
     except Exception as e:
         return {"error": str(e)}
@@ -389,8 +443,7 @@ async def getAllUsers(userID: str = Query(..., description="The ID of the user")
         if not user_data or not user_data["admin"]:
             raise HTTPException(status_code=403, detail="User is not an admin")
         users = await user_col.find().to_list()
-        for i in range(len(users)):
-            users[i] = Customer(**users[i])
+        users = objToStr(users)
         return {"message": "returning a list of users", "data": users}
     except Exception as e:
         return {"error": str(e)}
@@ -403,12 +456,12 @@ async def getAllSubs(userID: str = Query(..., description="The ID of the user"))
         if not user_data or not user_data["admin"]:
             raise HTTPException(status_code=403, detail="User is not an admin")
         subscriptions = await sub_col.find().to_list()
-        for i in range(len(subscriptions)):
-            subscriptions[i] = Subscription(**subscriptions[i])
+        subscriptions = objToStr(subscriptions)
         return {"message": "returning a list of subscriptions", "data": subscriptions}
     except Exception as e:
         return {"error": str(e)}
     
+
 @app.get("/admin/permissions")
 async def getAllPerms(userID: str = Query(..., description="The ID of the user")):
     try:
@@ -416,8 +469,41 @@ async def getAllPerms(userID: str = Query(..., description="The ID of the user")
         if not user_data or not user_data["admin"]:
             raise HTTPException(status_code=403, detail="User is not an admin")
         permissions = await perm_col.find().to_list()
-        for i, val in enumerate(permissions):
-            permissions[i] = Permission(**val)
+        permissions = objToStr(permissions)
         return {"message": "returning a list of permissions", "data": permissions}
     except Exception as e:
         return {"error": str(e)}
+    
+
+@app.get("/username/{username}")
+async def getUserID(username: str):
+    try:
+        user_data = await user_col.find_one({"username": username})
+        if not user_data:
+            raise HTTPException(status_code=404, detail="User was not found")
+        user_data = objToStr(user_data)
+        return {"message": "UserID was aquired", "data": user_data}
+    except Exception as e:
+        return {"error": str(e)}
+    
+
+@app.get("/access/{access}")
+async def getPermissionID(access: str):
+    try:
+        perm_data = await perm_col.find_one({"access": access})
+        if not perm_data:
+            raise HTTPException(status_code=404, detail="Permission not found")
+        perm_data = objToStr(perm_data)
+        return {"message": "Permission ID was aquired", "data": perm_data}
+    except Exception as e:
+        return {"error": str(e)}
+    
+    
+# Helper function to make ObjectID easier to work with
+def objToStr(data):
+    if isinstance(data, list):
+        return [objToStr(item) for item in data]
+    elif isinstance(data, dict):
+        return {key: (str(value) if isinstance(value, ObjectId) else value) for key, value in data.items()}
+    else:
+        return data

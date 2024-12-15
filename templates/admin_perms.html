@@ -10,13 +10,13 @@
     <h1>Create New Permission</h1>
     <form action="/create_permission" method="post">
         <label for="permission_name">Permission Name:</label>
-        <input type="text" id="permission_name" name="permission_name" required>
+        <input type="text" id="permission_name" name="permission_name" required><br />
         
         <label for="permission_description">Description:</label>
-        <textarea id="permission_description" name="permission_description" required></textarea>
+        <textarea id="permission_description" name="permission_description" required></textarea><br />
         
-        <label for="permission_type">Permission Type:</label>
-        <input type="text" id="access" name="permission_type" required>
+        <label for="access">Permission Type:</label>
+        <input type="text" id="access" name="access" required><br />
 
         <button type="submit">Create Permission</button>
     </form>

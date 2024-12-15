@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Permission</title>
+</head>
+<body>
+    <h1>Edit Permission</h1>
+    <form action="{{ '/edit_permission/' + permission['_id'] }}" method="post">
+        <input type="hidden" name="permission_id" value="{{ permission.id }}">
+        <div>
+            <label for="name">Permission Name:</label>
+            <input type="text" id="name" name="name" value="{{ permission.name }}" required>
+        </div>
+        <div>
+            <label for="desc">Description:</label>
+            <textarea id="desc" name="desc" required>{{ permission.desc }}</textarea>
+        </div>
+        <div>
+            <label for="access">Permission Level:</label>
+            <input type="text" id="access" name="access" value="{{ permission['access'] }}" required>
+        </div>
+        <button type="submit">Save Changes</button>
+    </form>
+</body>
+</html>

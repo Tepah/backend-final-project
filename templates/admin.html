@@ -10,22 +10,43 @@
     <h3>Users: </h3>
     <ul>
     {% for user in user_data %}
-        <li>{{ user }}</li>
+        <li>
+            {{ user }}
+            <a href="{{ '/admin_edit_user/' + user['_id'] }}">Edit</a>
+            <form action="{{ '/delete_user/' + user['_id'] + '/' + user['subscription'] }}" method="post">
+                <input type="submit" value="Delete">
+            </form>
+        </li>
     {% endfor %}
     </ul>
     <h3>Subscriptions</h3>
     <ul>
     {% for subscription in sub_data %}
-        <li>{{ subscription }}</li>
+        <li>
+            {{ subscription }} 
+            <a href="{{ '/admin_edit_subscription/' + subscription['_id'] }}">Edit</a>
+            <form action="{{ '/delete_subscription/' + subscription['_id'] }}" method="post">
+                <input type="submit" value="Delete">
+            </form>
+        </li>
     {% endfor %}
     </ul>
     <a href="{{ url_for('createSubscription') }}">Create Subscription</a>
     <h3>Permissions</h3>
     <ul>
     {% for permission in perm_data %}
-        <li>{{ permission }}</li>
+        <li>
+            {{ permission }} 
+            <a href="{{ '/edit_permission/' + permission['_id'] }}">Edit</a>
+            <form action="{{ '/delete_permission/' + permission['_id'] }}" method="post">
+                <input type="submit" value="Delete">
+            </form>
+        </li>
     {% endfor %}
     </ul>
     <a href="{{ url_for('createPermission') }}">Create Permission</a>
+    <form action="/logout" method="post">
+        <input type="submit" value="Logout">
+    </form>
 </body>
 </html>
