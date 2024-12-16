@@ -9,19 +9,11 @@
 <body>
     <div class="container">
         <h1>Edit Subscription</h1>
-        <form action="/edit_subscription/{{ subscription['_id'] }}" method="post">
+        <form action="/admin_edit_subscription/{{ subscription['_id'] }}" method="post">
             <label for="name">Name:</label>
             <input type="text" id="name" name="name" value="{{ subscription['name']}}" required><br>
             <label for="description">Description:</label>
             <textarea id="description" name="description">{{ subscription['desc']}}</textarea><br><br>
-            <label for="plan">Subscription Plan:</label>
-            {%for permission in subscription['permissions']%}
-                <p>{{permission}}</p> <a href="{{'/delete_permission/' + permission}}">Delete</a><br>
-            {%endfor%}
-            <form>
-                <input type="text" name="permission_name">
-                <input type="submit" value="Add Permission">
-            </form>
             
             <label for="requests">Requests:</label>
             <input type="number" id="requests" name="requests" value="{{ subscription['requests'] }}" required><br><br>
@@ -32,7 +24,19 @@
             <label for="auto">Auto-Renew:</label>
             <input type="checkbox" id="auto" name="auto" {% if subscription['auto'] %}checked{% endif %}><br><br>
             
-            <input type="submit" value="Create Subscription">
+            <input type="submit" value="Update Subscription">
+        </form>
+        
+        <label for="plan">Subscription Plan:</label><br>
+        {%for permission in subscription['permissions']%}
+            <form action="{{ '/remove_permission/' }}" method="post">
+                <input type="hidden" name="permission_name" value="{{permission}}">
+                <input type = "hidden" name = "subscription_id" value = "{{subscription['_id']}}">
+                <input type="submit" value="Delete">
+        {%endfor%}
+        <form action="{{ '/add_perm/' + subscription['_id'] }}" method="post">
+            <input type="text" name="permission_name" id ="permission_name" required>
+            <input type="submit" value="Add Permission">
         </form>
     </div>
 </body>

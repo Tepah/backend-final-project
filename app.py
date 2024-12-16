@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime, timedelta
 from bson import ObjectId
+from dateutil import parser
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.encoders import jsonable_encoder
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -174,12 +175,12 @@ async def changeSubForUser(id: str, data: dict):
 
 
 @app.get("/user/{id}/subscription")
-def getUserSubscription(id: str):
+async def getUserSubscription(id: str):
     try:
-        user = user_col.find_one({"_id": id})
+        user = await user_col.find_one({"_id": ObjectId(id)})
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        subscription = sub_col.find_one({"_id": user["subscription"]})
+        subscription = await sub_col.find_one({"_id": ObjectId(user["subscription"])})
 
         return {"message": "User subscription aquired", "data": subscription}
     except Exception as e:
@@ -247,29 +248,27 @@ async def adminChangeUserSub(userID: str, subID: str, data: dict):
 
 # Access Control function
 @app.get("/access/{userID}/{request}")
-def checkUserAllowed(userID: str, request: str):
+async def checkUserAllowed(userID: str, request: str):
     try:
-        user_data = user_col.find_one({"_id": ObjectId(userID)})
+        user_data = await user_col.find_one({"_id": ObjectId(userID)})
         if "admin" in user_data and user_data["admin"]:
             return {"message": "User is an Admin", "data": True}
-        sub_data = getUserSubscription(userID)["data"]
+        sub_data = (await getUserSubscription(userID))["data"]
         if not sub_data:
             raise HTTPException(status_code=404, detail="No Subscription data was not found")
         sub = Subscription(**sub_data)
 
-        sub_expired = checkUserSubscriptionExpire(userID)["data"]
-
+        sub_expired = (await checkUserSubscriptionExpire(userID))["data"]
         if sub_expired: 
             raise HTTPException(status_code=404, detail="Subscription is expired and not renewed")
-
         access = False
-        for permission in sub["permissions"]:
-            permission_data = perm_col.find_one({"_id": ObjectId(permission)})
+        for permission in sub.permissions:
+            permission_data = await perm_col.find_one({"_id": ObjectId(permission)})
             if permission_data["access"] == request:
                 access = True
                 break
 
-        if sub["requests"] >= sub["access_limits"]: access = False
+        if sub.requests >= sub.access_limit: access = False
 
         if not access:
             raise HTTPException(status_code=403, detail="User is not allowed to access this.")
@@ -281,9 +280,9 @@ def checkUserAllowed(userID: str, request: str):
 
 # Usage Tracking and Limit enforcing
 @app.get("/user/{userID}/requests")
-def getUserCurrentRequests(userID: str):
+async def getUserCurrentRequests(userID: str):
     try:
-        sub_data = getUserSubscription(userID)
+        sub_data = (await getUserSubscription(userID))
         if not sub_data:
             raise HTTPException(status_code=404, detail="Subscription was not found.")
         return {"Message": "User requests successfully aquired", "data": sub_data["requests"]}
@@ -294,7 +293,7 @@ def getUserCurrentRequests(userID: str):
 @app.put("/user/{userID}/requests")
 async def increaseUserCurrentRequests(userID: str):
     try:
-        sub_data = await getUserSubscription(userID)["data"]
+        sub_data = (await getUserSubscription(userID))["data"]
         if not sub_data:
             raise HTTPException(status_code=404, detail="Subscription was not found")
         sub_data["requests"] += 1
@@ -307,17 +306,18 @@ async def increaseUserCurrentRequests(userID: str):
 @app.get("/user/{userID}/check")
 async def checkUserSubscriptionExpire(userID: str):
     try:
-        sub_data = await getUserSubscription(userID)["data"]
+        sub_data = (await getUserSubscription(userID))["data"]
         if not sub_data:
             raise HTTPException(status_code=404, detail="Subscription not found")
-        start_date = datetime.strptime(sub_data["start_date"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        start_date = parser.isoparse(sub_data["start_date"])
         expiration = start_date + timedelta(days=30)
         current_date = datetime.now()
         if current_date > expiration and not sub_data["auto"]:
             deleteSub(sub_data["_id"])
+            removeUserSubscription(userID)
             return {"message": "Subscription is Expired", "data": True}
-        elif sub_data["auto"]:
-            resetUserSubscription(userID)
+        elif current_date > expiration and sub_data["auto"]:
+            await resetUserSubscription(userID)
             return {"message": "Subscription has been auto renewed", "data": False}
         else:
             return {"message": "Subscription is active", "data": False}
@@ -328,14 +328,26 @@ async def checkUserSubscriptionExpire(userID: str):
 @app.put("/user/{userID}/reset")
 async def resetUserSubscription(userID: str):
     try:
-        sub_data = await getUserSubscription(userID)["data"]
+        sub_data = (await getUserSubscription(userID))["data"]
         if not sub_data:
             raise HTTPException(status_code=404, detail="Subscription not found")
         deleteSub(sub_data["_id"])
         sub_data["requests"] = 0
-        new_sub_id = await createSub(sub_data)["data"]
+        new_sub_id = (await createSub(sub_data))["data"]
         changeUserSubscription(userID, new_sub_id)
         return {"message": "Subscription has been Reset", "data": new_sub_id}
+    except Exception as e:
+        return {"error": str(e)}
+    
+
+@app.put("/user/{userID}/remove_subscription")
+async def removeUserSubscription(userID: str):
+    try:
+        sub_data = (await getUserSubscription(userID))["data"]
+        if not sub_data:
+            raise HTTPException(status_code=404, detail="Subscription not found")
+        result = await user_col.update_one({"_id": ObjectId(userID)}, {"$set": {"subscription": ""}})
+        return {"message": "Subscription has been removed"}
     except Exception as e:
         return {"error": str(e)}
 
@@ -413,12 +425,12 @@ async def addSubscriptionPermission(subID: str, permID: str):
         return {"error": str(e)}
     
 
-@app.get("/view/{request}")
-def viewPage(request: str, userID: str = Query(..., description="The ID of the user")):
+@app.get("/view/{userID}/{request}")
+async def viewPage(userID: str, request: str):
     try:
-        if not checkUserAllowed(userID, request):
+        if not (await checkUserAllowed(userID, request))["data"]:
             raise HTTPException(status_code=403, detail="User is not allowed to View this page")
-        asyncio.run(increaseUserCurrentRequests(userID))
+        await increaseUserCurrentRequests(userID)
         return {"message": "User viewed page and incremented thier count", "data": "You're accessing the file!"}
     except Exception as e:
         return {"error" : str(e)}
@@ -495,6 +507,34 @@ async def getPermissionID(access: str):
             raise HTTPException(status_code=404, detail="Permission not found")
         perm_data = objToStr(perm_data)
         return {"message": "Permission ID was aquired", "data": perm_data}
+    except Exception as e:
+        return {"error": str(e)}
+    
+
+@app.put("/delete/permission/{permID}")
+async def deletePermissionFromAll(permID: str):
+    try:
+        result = await sub_col.update_many(
+            {"permissions": permID},
+            {"$pull": {"permissions": permID}}
+        )
+        if result.deleted_count > 0:
+            return {"message": "Permission has been deleted"}
+        else:
+            raise HTTPException(status_code=404, detail="Permission not found")
+    except Exception as e:
+        return {"error": str(e)}
+    
+
+@app.put("/remove/permission/{permID}/subscription/{subID}")
+def removePermissionFromSub(permID: str, subID: str):
+    try:
+        sub_data = sub_col.find_one({"_id": ObjectId(subID)})
+        if not sub_data:
+            raise HTTPException(status_code=404, detail="Subscription not found")
+        sub_data["permissions"].remove(permID)
+        result = sub_col.update_one({"_id": ObjectId(subID)}, {"$set": sub_data})
+        return {"message": "Permission has been removed from subscription"}
     except Exception as e:
         return {"error": str(e)}
     

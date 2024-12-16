@@ -3,10 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home</title>
+    <title>{{ user["name"] }}'s Account</title>
 </head>
 <body>
     <h1>Main</h1>
+    <h3>Subscription:</h3>
+    {% if user["subscription"] %}
+        <p>{{ subscription["name"] }}</p>
+        <p>{{ subscription["requests"] }} of {{ subscription["access_limit"] }} accesses.</p>
+        <ul>
+            {% for perm in permissions %}
+                <li>{{ perm["name"] }}</li>
+            {% endfor %}
+        </ul>
+        <a href = "{{ url_for('addPermission') }}">Add Permission</a><br>
+        <a href = "{{ url_for('changeSubscription') }}">Change Subscription</a><br>
+        <form action="{{ url_for('cancelSubscription') }}" method="post">
+            <button type="submit">Cancel Subscription</button>
+        </form>
+    {% else %}
+        <a href = "{{ url_for('changeSubscription') }}">Add Subscription</a><br>
+    {% endif %}
+    <h3>Content: </h3>
+    <a href="{{ url_for('tier1Content') }}">Tier 1 Content</a><br>
+    <a href="{{ url_for('tier2Content') }}">Tier 2 Content</a><br>
+    <a href="{{ url_for('tier3Content') }}">Tier 3 Content</a><br>
+    <a href="{{ url_for('specialContent') }}">special Content</a><br>
+
+
     <form action="{{ url_for('logout') }}" method="post">
         <button type="submit">Logout</button>
     </form>

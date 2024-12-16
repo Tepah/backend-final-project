@@ -28,7 +28,19 @@ def main():
                                    sub_data=sub_data, 
                                    perm_data=perm_data)
         else:
-            return render_template("index.html")
+            user = response_data["data"]
+            response = requests.get(url + "/subscriptions/" + user["subscription"])
+            subscription = response.json()["data"]
+            permissions = []
+            for perm in subscription["permissions"]:
+                response = requests.get(url + "/permissions/" + perm)
+                perm_data = response.json()["data"]
+                permissions.append(perm_data)
+                print(perm_data)
+            return render_template("index.html", 
+                                   user=user, 
+                                   subscription=subscription, 
+                                   permissions=permissions)
     except Exception as e:
         return jsonify({"error": str(e)})
     
@@ -177,6 +189,19 @@ def editSubscription(subscription_id):
     return render_template('admin_edit_subscription.html', subscription=subscription_data)
 
 
+@app.route("/add_perm/<subscription_id>", methods=["POST"])
+def addPerm(subscription_id):
+    data = request.form.to_dict()
+    response = requests.get(url + "/access/" + data.get("permission_name"))
+    response_data = response.json()
+    print(response_data)
+    permission_data = response_data["data"]
+    response = requests.put(url + "/subscriptions/" + subscription_id + "/permission/" + permission_data["_id"],
+                            headers={'Content-Type': "application/json"})
+    print(response.json())
+    return redirect(url_for("main"))
+
+
 @app.route("/delete_subscription/<subscription_id>", methods=["POST"])
 def deleteSubscription(subscription_id):
     response = requests.delete(url + "/subscriptions/" + subscription_id)
@@ -197,6 +222,8 @@ def deletePermission(permission_id):
     response = requests.delete(url + "/permissions/" + permission_id)
     response_data = response.json()
     print(response_data)
+    reponse = requests.put(url + "/delete/permission/" + permission_id)
+    print(response.json())
     return redirect(url_for("main"))
 
 @app.route("/delete_user/<user_id>/<sub_id>", methods=["POST"])
@@ -207,6 +234,144 @@ def deleteUser(user_id, sub_id):
         response = requests.delete(url + "/subscriptions/" + sub_id)
     print(response_data)
     return redirect(url_for("main"))
+
+
+@app.route("/add_permission/", methods=["GET", "POST"])
+def addPermission():
+    if request.method == "POST":
+        try: 
+            userID = request.cookies.get("user")
+            data = request.form.to_dict()
+            response = requests.get(url + "/access/" + data.get("permission_access"))
+            response_data = response.json()
+            print(response_data)
+            permission_data = response_data["data"]
+            response = requests.get(url + "/users/" + userID)
+            user_data = response.json()
+            print(user_data)
+            response = requests.put(url + "/subscriptions/" + user_data["data"]["subscription"] + "/permission/" + permission_data["_id"])
+            print(response.json())
+            return redirect(url_for("main"))
+        except Exception as e:
+            return jsonify({"error": str(e)})
+    return render_template("add_permission.html")
+
+
+@app.route("/remove_permission/", methods=["POST"])
+def removePermission():
+    data = request.form.to_dict()
+    response = requests.get(url + "/access/" + data.get("permission_name"))
+    response_data = response.json()
+    print(response_data)
+    permission_data = response_data["data"]
+    response = requests.delete(url + "/delete/permission/" + permission_data["_id"] + "/subscription/" + response_data["subscription_id"])
+    print(response.json())
+    return redirect(url_for("main"))
+
+
+@app.route("/change_subscription/", methods=["GET", "POST"])
+def changeSubscription():
+    if request.method == "POST":
+        userID = request.cookies.get("user")
+        user = requests.get(url + "/user/" + userID)
+        data = request.form.to_dict()
+        access_limit = 100 if data.get("subscription") == "tier1" else 200 if data.get("subscription") == "tier2" else 300
+        subscription = {
+            "name": user["name"] + "'s subscription",
+            "desc": user["name"] + "'s" + data.get("subscription") + "subscription",
+            "access_limit": access_limit,
+            "auto": data.get("auto") == 'on',
+        }
+        response = requests.post(url + "/subscriptions",
+                                 json=subscription,
+                                 headers={'Content-Type': "application/json"})
+        response_data = response.json()
+        print(response_data)
+        subID = response_data["data"]
+
+        tier = data["plan"]
+        permission = 0
+        while tier != "tier" + str(permission):
+            permission += 1
+            response = requests.get(url + "/access/" + "tier" + str(permission))
+            response_data = response.json()
+            print(response_data)
+            permission_data = response_data["data"]
+            response = requests.put(url + "/subscriptions/" + subID + "/permission/" + permission_data["_id"],
+                                    headers={'Content-Type': "application/json"})
+            print(response.json())
+
+        response = requests.get(url + "/username/" + data.get("username"))
+        response_data = response.json()
+        print(response_data)
+        if response_data["data"]["subscription"] != "":
+            response = requests.delete(url + "/subscriptions/" + response_data["data"]["subscription"])
+        return redirect(url_for("main"))
+    return render_template("change_subscription.html")
+
+
+@app.route("/cancel_subscription/", methods=["POST"])
+def cancelSubscription():
+    userID = request.cookies.get("user")
+    response = requests.put(url + "/user/" + userID + "/remove_subscription")
+    print(response.json())
+    return redirect(url_for("main"))
+
+
+@app.route("/tier1")
+def tier1Content():
+    userID = request.cookies.get("user")
+    response = requests.get(url + "/view/" + userID + "/tier1")
+    response_data = response.json()
+    if "error" in response_data:
+        return jsonify(response_data)
+    return '''
+    <h1>tier1</h1>
+    <p>You are viewing tier 1 content</p>
+    <a href="/">Back to main</a>
+    '''
+
+
+@app.route("/tier2")
+def tier2Content():
+    userID = request.cookies.get("user")
+    response = requests.get(url + "/view/" + userID + "/tier2")
+    response_data = response.json()
+    if "error" in response_data:
+        return jsonify(response_data)
+    return '''
+    <h1>tier2</h1>
+    <p>You are viewing tier 2 content</p>
+    <a href="/">Back to main</a>
+    '''
+
+
+@app.route("/tier3")
+def tier3Content():
+    userID = request.cookies.get("user")
+    response = requests.get(url + "/view/" + userID + "/tier3")
+    response_data = response.json()
+    if "error" in response_data:
+        return jsonify(response_data)
+    return '''
+    <h1>tier3</h1>
+    <p>You are viewing tier 3 content</p>
+    <a href="/">Back to main</a>
+    '''
+
+@app.route("/special")
+def specialContent():
+    userID = request.cookies.get("user")
+    response = requests.get(url + "/view/" + userID + "/special")
+    response_data = response.json()
+    if "error" in response_data:
+        return jsonify(response_data)
+    return '''
+    <h1>special</h1>
+    <p>You are viewing special content</p>
+    <a href="/">Back to main</a>
+    '''
+
 
 if __name__ == "__main__":
     app.run(port=5000)
