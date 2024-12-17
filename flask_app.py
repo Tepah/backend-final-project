@@ -181,6 +181,10 @@ def createSubscription():
 def editSubscription(subscription_id):
     if request.method == "POST":
         data = request.form.to_dict()
+        response = requests.get(url + "/subscriptions/" + subscription_id)
+        response_data = response.json()
+        print(response_data)
+        data["permissions"] = response_data["data"]["permissions"]
         subscription_data = Subscription(**data)
         json_data = jsonable_encoder(subscription_data)
         response = requests.put(url + "/subscriptions/" + subscription_id,
@@ -223,6 +227,7 @@ def deleteSubscription(subscription_id):
         print(response.json())
     return redirect(url_for("main"))
 
+
 @app.route("/delete_permission/<permission_id>", methods=["POST"])
 def deletePermission(permission_id):
     response = requests.delete(url + "/permissions/" + permission_id)
@@ -231,6 +236,7 @@ def deletePermission(permission_id):
     reponse = requests.put(url + "/delete/permission/" + permission_id)
     print(response.json())
     return redirect(url_for("main"))
+
 
 @app.route("/delete_user/<user_id>/<sub_id>", methods=["POST"])
 def deleteUser(user_id, sub_id):
@@ -287,7 +293,7 @@ def changeSubscription():
             "name": str(user["username"] + "'s subscription"),
             "desc": str(user["username"] + "'s" + data.get("subscription") + "subscription"),
             "access_limit": access_limit,
-            "auto": data.get("auto") == 'on',
+            "auto": data.get("auto") == "on",
         }
         response = requests.post(url + "/subscriptions",
                                  json=subscription,

@@ -10,20 +10,20 @@
         <h2>Tier 1</h2>
         <input type="hidden" id="subscription" name="subscription" value="tier1">
         <label for="auto">Auto-Renew:</label><br>
-        <input type="checkbox" id="auto" >
+        <input type="checkbox" id="auto" name="auto"><br>
         <button type="submit">Choose Basic</button>
     </form>
     <form action="/change_subscription" method="post">
         <h2>Tier 2</h2>
         <input type="hidden" id="subscription" name="subscription" value="tier2">
         <label for="auto">Auto-Renew:</label><br>
-        <input type="checkbox" id="auto" >
+        <input type="checkbox" id="auto" name="auto"><br>
         <button type="submit">Choose Standard</button>
     </form>
     <form action="/change_subscription" method="post">
         <h2>Tier 3</h2>
         <label for="auto">Auto-Renew:</label><br>
-        <input type="checkbox" id="auto" >
+        <input type="checkbox" id="auto" name="auto"><br>
         <input type="hidden" id="subscription" name="subscription" value="tier3">
         <button type="submit">Choose Premier</button>
     </form>

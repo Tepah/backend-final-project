@@ -12,15 +12,16 @@
         <form action="/admin_edit_subscription/{{ subscription['_id'] }}" method="post">
             <label for="name">Name:</label>
             <input type="text" id="name" name="name" value="{{ subscription['name']}}" required><br>
-            <label for="description">Description:</label>
-            <textarea id="description" name="description">{{ subscription['desc']}}</textarea><br><br>
+            <label for="desc">Description:</label>
+            <textarea id="desc" name="desc">{{ subscription['desc']}}</textarea><br><br>
             
             <label for="requests">Requests:</label>
             <input type="number" id="requests" name="requests" value="{{ subscription['requests'] }}" required><br><br>
 
             <label for="limit">Access Limit:</label>
-            <input type="number" id="limit" name="limit" value="{{ subscription['access_limit'] }}" required><br><br>
+            <input type="number" id="access_limit" name="access_limit" value="{{ subscription['access_limit'] }}" required><br><br>
             
+            <input type="hidden" id="start_date" name="start_date" value="{{ subscription['start_date'] }}">
             <label for="auto">Auto-Renew:</label>
             <input type="checkbox" id="auto" name="auto" {% if subscription['auto'] %}checked{% endif %}><br><br>
             
@@ -30,9 +31,11 @@
         <label for="plan">Subscription Plan:</label><br>
         {%for permission in subscription['permissions']%}
             <form action="{{ '/remove_permission/' }}" method="post">
+                <label for="permission">{{permission}}</label>
                 <input type="hidden" name="permission_name" value="{{permission}}">
                 <input type = "hidden" name = "subscription_id" value = "{{subscription['_id']}}">
-                <input type="submit" value="Delete">
+                <input type="submit" value="Delete"><br>
+            </form>
         {%endfor%}
         <form action="{{ '/add_perm/' + subscription['_id'] }}" method="post">
             <input type="text" name="permission_name" id ="permission_name" required>

@@ -227,7 +227,7 @@ async def adminAssignUserSub(userID: str, data: dict):
 @app.put("/admin/user/{userID}/subscription/{subID}")
 async def adminChangeUserSub(userID: str, subID: str, data: dict):
     try:
-        user_data = await user_col.find_one({"_id": ObjectId(userID)})
+        user_data = await user_col.find_one({"_id": ObjectId(data.get("user_id", ""))})
         if not user_data or not user_data["admin"]:
             raise HTTPException(status_code=403, detail="Admin priviledges are required")
         user_data = await user_col.find_one({"_id": ObjectId(userID)})
