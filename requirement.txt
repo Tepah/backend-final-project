@@ -1,4 +1,0 @@
-pymongo
-fastapi
-asyncio
-motor

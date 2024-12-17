@@ -74,7 +74,7 @@ async def modifySub(id: str, data: dict):
 
 
 @app.delete("/subscriptions/{id}")
-async def deleteSub(id: str):
+def deleteSub(id: str):
     try:
         result = sub_col.delete_one({"_id": ObjectId(id)})
         return {"message": "Data has been deleted"}
@@ -119,9 +119,9 @@ async def modifyPermission(id: str, data: dict):
         return {"Error" : str(e)}
 
 @app.delete("/permissions/{id}")
-async def deletePermission(id: str):
+def deletePermission(id: str):
     try:
-        result = await perm_col.delete_one({"_id": ObjectId(id)})
+        result = perm_col.delete_one({"_id": ObjectId(id)})
         if result.deleted_count > 0:
             return {"message": "Permission has been deleted"}
         else:
@@ -144,7 +144,8 @@ async def changeUserSubscription(userID: str, subID: str):
         
         customer["subscription"] = str(subscription["_id"])
 
-        res = await user_col.update_one({"_id": ObjectId(subID)}, {"$set": customer})
+        res = await user_col.update_one({"_id": ObjectId(userID)}, {"$set": customer})
+        
         return {"message": "Subscription has been updated for user: " + userID + "to Subscription ID: " + subID}
     except Exception as e:
         return {"Error": str(e)}
@@ -226,7 +227,7 @@ async def adminAssignUserSub(userID: str, data: dict):
 @app.put("/admin/user/{userID}/subscription/{subID}")
 async def adminChangeUserSub(userID: str, subID: str, data: dict):
     try:
-        user_data = await user_col.find_one({"_id": ObjectId(data.get("user_id", ""))})
+        user_data = await user_col.find_one({"_id": ObjectId(userID)})
         if not user_data or not user_data["admin"]:
             raise HTTPException(status_code=403, detail="Admin priviledges are required")
         user_data = await user_col.find_one({"_id": ObjectId(userID)})
@@ -347,6 +348,7 @@ async def removeUserSubscription(userID: str):
         if not sub_data:
             raise HTTPException(status_code=404, detail="Subscription not found")
         result = await user_col.update_one({"_id": ObjectId(userID)}, {"$set": {"subscription": ""}})
+        deleteSub(sub_data["_id"])
         return {"message": "Subscription has been removed"}
     except Exception as e:
         return {"error": str(e)}

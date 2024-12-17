@@ -29,8 +29,12 @@ def main():
                                    perm_data=perm_data)
         else:
             user = response_data["data"]
+            if user['subscription'] == "":
+                return render_template("index.html", user=user)
             response = requests.get(url + "/subscriptions/" + user["subscription"])
-            subscription = response.json()["data"]
+            response_data = response.json()
+            subscription = response_data["data"]
+            print(subscription)
             permissions = []
             for perm in subscription["permissions"]:
                 response = requests.get(url + "/permissions/" + perm)
@@ -56,6 +60,8 @@ def login():
             response_data = response.json()
             print(response_data)
             resp = make_response(redirect(url_for('main')))
+            if 'error' in response_data:
+                return jsonify(response_data)
             resp.set_cookie('user', response_data["data"]["_id"])
             return resp
         except Exception as e:
@@ -273,12 +279,13 @@ def removePermission():
 def changeSubscription():
     if request.method == "POST":
         userID = request.cookies.get("user")
-        user = requests.get(url + "/user/" + userID)
+        user = requests.get(url + "/users/" + userID)
+        user = user.json()["data"]
         data = request.form.to_dict()
         access_limit = 100 if data.get("subscription") == "tier1" else 200 if data.get("subscription") == "tier2" else 300
         subscription = {
-            "name": user["name"] + "'s subscription",
-            "desc": user["name"] + "'s" + data.get("subscription") + "subscription",
+            "name": str(user["username"] + "'s subscription"),
+            "desc": str(user["username"] + "'s" + data.get("subscription") + "subscription"),
             "access_limit": access_limit,
             "auto": data.get("auto") == 'on',
         }
@@ -289,7 +296,7 @@ def changeSubscription():
         print(response_data)
         subID = response_data["data"]
 
-        tier = data["plan"]
+        tier = data["subscription"]
         permission = 0
         while tier != "tier" + str(permission):
             permission += 1
@@ -300,12 +307,11 @@ def changeSubscription():
             response = requests.put(url + "/subscriptions/" + subID + "/permission/" + permission_data["_id"],
                                     headers={'Content-Type': "application/json"})
             print(response.json())
+        response = requests.put(url + "/user/" + userID + "/subscription/" + subID)
+        print(response.json())
 
-        response = requests.get(url + "/username/" + data.get("username"))
-        response_data = response.json()
-        print(response_data)
-        if response_data["data"]["subscription"] != "":
-            response = requests.delete(url + "/subscriptions/" + response_data["data"]["subscription"])
+        if user["subscription"] != "":
+            response = requests.delete(url + "/subscriptions/" + user["subscription"])
         return redirect(url_for("main"))
     return render_template("change_subscription.html")
 
